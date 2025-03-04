@@ -1,10 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
-app.use(cors());
 const fs = require('fs');
 const multer = require('multer');
 const { createWorker } = require('tesseract.js');
+app.use(cors({
+    origin: 'http://192.168.1.2:5000', 
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type'],
+  }));
 
 (async () => {
     // Create and initialize the worker properly
@@ -40,7 +44,7 @@ const { createWorker } = require('tesseract.js');
                     // OCR processing
                     const { data: { text: extractedText } } = await worker.recognize(data);
                     
-                    // FIX 1: Use extractedText instead of text
+                    
                     // Date extraction
                     const dateRegex = /Reported\s+D[ae]te?[:\s]*(\d{2}\/\d{2}\/\d{4})/i;
                     const reportedDateMatch = extractedText.match(dateRegex);
@@ -55,13 +59,13 @@ const { createWorker } = require('tesseract.js');
                         month = monthNames[parseInt(monthNum) - 1] || "Not found";
                     }
     
-                    // FIX 2: Use extractedText here too
+                    
                     // Serum creatinine extraction
                     const creatinineRegex = /Creatinine-\s*Serum\s+([0-9.]+)/i;
                     const serumMatch = extractedText.match(creatinineRegex);
                     const serumValue = serumMatch ? serumMatch[1] : "Not found";
     
-                    // FIX 3: Return proper JSON structure
+                    //  Return proper JSON structure
                     res.json({
                         reportedDate,
                         month: month.toLowerCase(),

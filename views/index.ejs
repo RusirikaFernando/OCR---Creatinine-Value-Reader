@@ -4,12 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OCR</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            white-space: pre-wrap; /* Preserve formatting of extracted text */
+        }
+    </style>
 </head>
 <body>
-    <h1> Tesseract OCR</h1>
+    <h1>Tesseract OCR</h1>
     <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="avatar" />
+        <input type="file" name="avatar" required />
         <button type="submit">Extract</button>
     </form>
+
+    <% if (typeof extractedText !== 'undefined') { %>
+        <div class="result">
+            <h2>Extracted Text:</h2>
+            <p><%= extractedText %></p>
+        </div>
+    <% } %>
 </body>
 </html>

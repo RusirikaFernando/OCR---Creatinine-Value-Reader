@@ -57,16 +57,16 @@ app.use(
 
           // Regex patterns for different formats
           const dateRegexPatterns = [
-            /Reported\s+D[ae]te?[:\s]*(\d{2}\/\d{2}\/\d{4})/i, // A_format
-            /REPORTED\s*:\s*(\d{2}\/\d{2}\/\d{4})/i, // lanka 1,3
-            /REPORTED\s*[©:]?\s*(\d{2}\/\d{2}\/\d{4})/i, // lanka 2
+            /Reported\s+D[ae]te?[:\s]*(\d{2}\/\d{2}\/\d{4})/i,
+            /REPORTED\s*:\s*(\d{2}\/\d{2}\/\d{4})/i, 
+            /REPORTED\s*[©:]?\s*(\d{2}\/\d{2}\/\d{4})/i, 
           ];
 
           const creatinineRegexPatterns = [
-            /Creatinine-\s*Serum\s+([0-9.]+)/i, // A_format
-            /CREATININE\s+([0-9.]+)\s+(?:[0-9.-]+\s+mg\/dL)?/i, // lanka 1
-            /CREATININE-(?:BLOOD)?\s*\(?CREATININE\)?\s*([\d.]+)\s*mg\/dL/i, //lanka 2
-            /CREATININE\s+([0-9.]+)\s+(?:[0-9.-]+\s+)?mg\/dL/i, // lanka 3
+            /Creatinine-\s*Serum\s+([0-9.]+)/i,
+            /CREATININE\s+([0-9.]+)\s+(?:[0-9.-]+\s+mg\/dL)?/i, 
+            /CREATININE-(?:BLOOD)?\s*\(?CREATININE\)?\s*([\d.]+)\s*mg\/dL/i, 
+            /CREATININE\s+([0-9.]+)\s+(?:[0-9.-]+\s+)?mg\/dL/i, 
           ];
 
           // Extract reported date

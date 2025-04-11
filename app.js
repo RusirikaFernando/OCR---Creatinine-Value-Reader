@@ -1,9 +1,15 @@
 const express = require("express");
 const cors = require("cors");
-const app = express();
 const fs = require("fs");
+const path = require("path");
 const multer = require("multer");
 const { createWorker } = require("tesseract.js");
+const sharp = require("sharp");
+const compression = require("compression");
+
+const app = express();
+
+app.use(compression());
 
 app.use(
   cors({
@@ -14,119 +20,117 @@ app.use(
 );
 
 (async () => {
-  // Create and initialize the worker properly
   const worker = await createWorker("eng");
+  await worker.setParameters({
+    tessedit_pageseg_mode: 6, // Treat image as a single uniform block of text
+    preserve_interword_spaces: 1,
+  });
 
-  // Multer Storage Configuration
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
       cb(null, "./uploads");
     },
     filename: (req, file, cb) => {
-      cb(null, file.originalname);
+      cb(null, Date.now() + "-" + file.originalname);
     },
   });
 
-  const upload = multer({ storage: storage }).single("avatar");
+  const upload = multer({ storage }).single("avatar");
 
   app.set("view engine", "ejs");
 
-  // Routes
   app.get("/", (req, res) => {
     res.render("index");
   });
 
   app.post("/upload", (req, res) => {
     upload(req, res, async (err) => {
-      if (err) return res.status(500).send("Error uploading file.");
+      if (err || !req.file) return res.status(500).send("Error uploading file.");
 
-      fs.readFile(`./uploads/${req.file.originalname}`, async (err, data) => {
-        if (err) return res.status(500).send("Error reading file.");
+      const originalPath = `./uploads/${req.file.filename}`;
+      const processedPath = `./uploads/processed-${req.file.filename}`;
 
-        try {
-          // OCR processing
-          const {
-            data: { text: extractedText },
-          } = await worker.recognize(data);
+      try {
+        // Resize and optimize image using sharp
+        await sharp(originalPath)
+          .resize({ width: 1000 }) // Resize to 1000px wide
+          .toFile(processedPath);
 
-          // Log extracted text for debugging
-          //console.log("Extracted Text:", extractedText);
+        // OCR on processed image
+        const {
+          data: { text: extractedText },
+        } = await worker.recognize(processedPath);
 
-          // Determine the format of the report
-          let reportedDate, serumCreatinine;
+        // Clean up temporary files
+        fs.unlink(originalPath, () => {});
+        fs.unlink(processedPath, () => {});
 
-          // Regex patterns for different formats
-          const dateRegexPatterns = [
-            /Reported\s+D[ae]te?[:\s]*(\d{2}\/\d{2}\/\d{4})/i,
-            /REPORTED\s*:\s*(\d{2}\/\d{2}\/\d{4})/i, 
-            /REPORTED\s*[©:]?\s*(\d{2}\/\d{2}\/\d{4})/i, 
-          ];
+        // Extract data using regex
+        let reportedDate = "Not found";
+        let serumCreatinine = "Not found";
 
-          const creatinineRegexPatterns = [
-            /Creatinine-\s*Serum\s+([0-9.]+)/i,
-            /CREATININE\s+([0-9.]+)\s+(?:[0-9.-]+\s+mg\/dL)?/i, 
-            /CREATININE-(?:BLOOD)?\s*\(?CREATININE\)?\s*([\d.]+)\s*mg\/dL/i, 
-            /CREATININE\s+([0-9.]+)\s+(?:[0-9.-]+\s+)?mg\/dL/i, 
-          ];
+        const dateRegexPatterns = [
+          /Reported\s+D[ae]te?[:\s]*(\d{2}\/\d{2}\/\d{4})/i,
+          /REPORTED\s*:\s*(\d{2}\/\d{2}\/\d{4})/i,
+          /REPORTED\s*[©:]?\s*(\d{2}\/\d{2}\/\d{4})/i,
+        ];
 
-          // Extract reported date
-          for (const regex of dateRegexPatterns) {
-            const match = extractedText.match(regex);
-            if (match) {
-              reportedDate = match[1];
-              break;
-            }
+        const creatinineRegexPatterns = [
+          /Creatinine-\s*Serum\s+([0-9.]+)/i,
+          /CREATININE\s+([0-9.]+)\s+(?:[0-9.-]+\s+mg\/dL)?/i,
+          /CREATININE-(?:BLOOD)?\s*\(?CREATININE\)?\s*([\d.]+)\s*mg\/dL/i,
+          /CREATININE\s+([0-9.]+)\s+(?:[0-9.-]+\s+)?mg\/dL/i,
+        ];
+
+        for (const regex of dateRegexPatterns) {
+          const match = extractedText.match(regex);
+          if (match) {
+            reportedDate = match[1];
+            break;
           }
-
-          // Extract creatinine value
-          for (const regex of creatinineRegexPatterns) {
-            const match = extractedText.match(regex);
-            if (match) {
-              serumCreatinine = match[1];
-              break;
-            }
-          }
-
-          // If no date or creatinine found, set to "Not found"
-          reportedDate = reportedDate || "Not found";
-          serumCreatinine = serumCreatinine || "Not found";
-
-          // Month conversion
-          let month = "Not found";
-          if (reportedDate !== "Not found") {
-            const [day, monthNum, year] = reportedDate.split("/");
-            const monthNames = [
-              "january",
-              "february",
-              "march",
-              "april",
-              "may",
-              "june",
-              "july",
-              "august",
-              "september",
-              "october",
-              "november",
-              "december",
-            ];
-            month = monthNames[parseInt(monthNum) - 1] || "Not found";
-          }
-
-          // Return JSON response
-          res.json({
-            reportedDate,
-            month: month.toLowerCase(),
-            serumCreatinine,
-          });
-        } catch (error) {
-          console.log("OCR Error:", error);
-          res.status(500).send("OCR processing failed.");
         }
-      });
+
+        for (const regex of creatinineRegexPatterns) {
+          const match = extractedText.match(regex);
+          if (match) {
+            serumCreatinine = match[1];
+            break;
+          }
+        }
+
+        // Extract month from date
+        let month = "Not found";
+        if (reportedDate !== "Not found") {
+          const [day, monthNum, year] = reportedDate.split("/");
+          const monthNames = [
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+          ];
+          month = monthNames[parseInt(monthNum) - 1] || "Not found";
+        }
+
+        res.json({
+          reportedDate,
+          month: month.toLowerCase(),
+          serumCreatinine,
+        });
+      } catch (error) {
+        console.error("OCR Error:", error);
+        res.status(500).send("OCR processing failed.");
+      }
     });
   });
 
-  // Start the server
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Running on port ${PORT}`));
 })();

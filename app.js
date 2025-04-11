@@ -61,6 +61,9 @@ app.use(
           data: { text: extractedText },
         } = await worker.recognize(processedPath);
 
+        // Log extracted text for debugging
+        //console.log("Extracted Text:", extractedText);
+
         // Clean up temporary files
         fs.unlink(originalPath, () => {});
         fs.unlink(processedPath, () => {});
